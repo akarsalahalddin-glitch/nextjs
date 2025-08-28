@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tank Calibration Tool</title>
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:0; background: linear-gradient(135deg,#e0eafc,#cfdef3); color:#333;}
+header {display:flex; justify-content:flex-end; align-items:center; padding:20px 40px; font-size:28px; font-weight:bold;}
+header .modern { color:orange; } header .surveying { color:navy; }
+footer { text-align:center; padding:15px; font-size:14px; color:#555; background-color: rgba(255,255,255,0.9);}
+.card { background-color: rgba(255,255,255,0.95); margin:25px 50px; padding:20px 30px; border-radius:15px; box-shadow:0 8px 20px rgba(0,0,0,0.1);}
+.controls h3 { margin-bottom:15px;}
+.controls label { display:flex; flex-direction: column; font-size:14px;}
+.controls input, .controls select { width:100%; padding:5px; margin-top:5px; }
+button { padding:7px 15px; margin:5px 5px 5px 0; border:none; border-radius:8px; background-color:#0b3d91; color:white; cursor:pointer; font-size:14px; }
+button:hover { background-color:#09427b; }
+.sampleTable, #calTable { width:100%; border-collapse:collapse; margin-top:15px; background-color:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 15px rgba(0,0,0,0.08);}
+.sampleTable th, .sampleTable td, #calTable th, #calTable td { border:1px solid #ddd; padding:6px 10px; text-align:center; font-size:13px;}
+.sampleTable th, #calTable th { background-color:#f0f4f8; font-weight:bold; }
+#calTableWrapper { height:400px; overflow-y:auto; margin-top:15px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.08);}
+#calTable thead th { position:sticky; top:0; background-color:#f0f4f8; z-index:2;}
+#calTable tbody tr:nth-child(even){background-color:#f9f9f9;}
+#calTable tbody tr:hover{background-color:#e6f0ff;}
+h2,h3 { margin-left:20px; margin-top:25px;}
+.info-tip { position:relative; display:inline-flex; align-items:center; gap:6px; margin-left:6px; }
+.info-tip .icon { width:18px; height:18px; display:inline-block; line-height:18px; text-align:center; border-radius:50%; border:1px solid #0b3d91; color:#0b3d91; font-weight:bold; font-size:12px; user-select:none; }
+.info-tip .bubble { position:absolute; left:50%; bottom:125%; transform:translateX(-50%); width:260px; background:#333; color:#fff; padding:8px 10px; border-radius:8px; font-size:12px; text-align:left; box-shadow:0 4px 10px rgba(0,0,0,0.2); opacity:0; visibility:hidden; transition:opacity .25s ease; pointer-events:none; z-index:5; }
+.info-tip:hover .bubble { opacity:1; visibility:visible; }
+</style>
+</head>
+<body>
+<header>
+<span class="modern">MODERN</span> <span class="surveying">SURVEYING</span>
+</header>
+
+<div class="card controls">
+<h3>Calibration Parameters</h3>
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; align-items:center;">
+<label>Tape Scale:<input id="tapeScale" type="number" value="1" step="0.0001"></label>
+<label>Tape Offset (mm):<input id="tapeOffset" type="number" value="0" step="0.01"></label>
+<label>Global EODR (mm):<input id="globalEODR" type="number" value="0" step="0.01"></label>
+<label>Interval (mm):<input id="interval" type="number" value="1" step="1"></label>
+<label>Display Step (mm):<input id="displayStep" type="number" value="10" step="1"></label>
+<label>Tank Height (mm):<input id="tankHeight" type="number" value="6000" step="1"></label>
+<label>Max Filling Height (mm):<input id="maxFillHeight" type="number" value="5800" step="1"></label>
+<label>Shell Temperature (°C):<input id="shellTemp" type="number" value="25" step="0.1"></label>
+<label>Liquid Density (kg/m³):<input id="liquidDensity" type="number" value="1000" step="0.1"></label>
+<label>Tank Material:
+<select id="tankMaterial">
+<option value="carbonSteel">Carbon Steel</option>
+<option value="stainlessSteel">Stainless Steel</option>
+<option value="aluminum">Aluminum</option>
+<option value="concrete">Concrete</option>
+<option value="FRP">Fiberglass Reinforced Plastic (FRP)</option>
+<option value="other">Other</option>
+</select></label>
+<label>Volume Unit:
+<select id="volUnit">
+<option value="liter">Liter</option>
+<option value="m3">Cubic Meter</option>
+</select></label>
+
+<!-- ✅ Strapping Section (always visible) -->
+<label>Tank Circumference (mm): <input id="strapCircumference" type="number" value="9425" step="0.01"></label>
+
+<div style="grid-column: span 2; display:flex; gap:10px; margin-top:5px;">
+<button onclick="recalculate()">Recalculate</button>
+<button onclick="downloadCSV()">Download CSV</button>
+</div>
+</div>
+</div>
+
+<!-- ✅ Courses Section -->
+<div class="card">
+<h3>Tank Courses</h3>
+<button onclick="addCourseRow()">Add Course</button>
+<button onclick="removeCourseRow()">Remove Course</button>
+<table class="sampleTable" id="courseTable">
+<tr><th>Course #</th><th>Height_mm</th><th>Plate Thickness_mm</th></tr>
+<tr><td>1</td><td><input type="number" value="2000"></td><td><input type="number" value="10"></td></tr>
+<tr><td>2</td><td><input type="number" value="2000"></td><td><input type="number" value="10"></td></tr>
+<tr><td>3</td><td><input type="number" value="2000"></td><td><input type="number" value="10"></td></tr>
+<tr><td>4</td><td><input type="number" value="2000"></td><td><input type="number" value="10"></td></tr>
+</table>
+</div>
+
+<!-- ✅ Total Station Section -->
+<div class="card">
+<h3>Total Station Measurements (Multiple Stations)</h3>
+<label>Number of Stations: <input type="number" id="numStations" value="8" min="1" max="10"></label>
+<label>Points per Course: <input type="number" id="pointsPerCourse" value="2" min="1" max="5"></label>
+<button onclick="generateTSGrid()">Generate Table</button>
+<table class="sampleTable" id="tsGrid">
+<thead></thead>
+<tbody></tbody>
+</table>
+</div>
+
+<!-- ✅ Dead Wood Section -->
+<div class="card">
+<h3>Dead Wood Measurement</h3>
+<button onclick="addDeadWoodRow()">Add Row</button>
+<button onclick="removeDeadWoodRow()">Remove Row</button>
+<table class="sampleTable" id="deadWoodTable">
+<tr>
+<th>Description</th>
+<th>Quantity</th>
+<th>Circumference (A) mm</th>
+<th>Height from Ground (B) mm</th>
+<th>Length (C) mm</th>
+<th>Add/Subtract</th>
+</tr>
+<tr>
+<td><input type="text" value=""></td>
+<td><input type="number" value="0"></td>
+<td><input type="number" value="0"></td>
+<td><input type="number" value="0"></td>
+<td><input type="number" value="0"></td>
+<td>
+<select>
+<option value="+">+</option>
+<option value="-">-</option>
+</select>
+</td>
+</tr>
+</table>
+</div>
+
+<!-- ✅ Tilt Section -->
+<div class="card">
+<h3>Tilt Measurement</h3>
+<table class="sampleTable" id="tiltTable">
+<tr>
+<th>Location</th><th>Point</th><th>X (mm)</th><th>Y (mm)</th>
+</tr>
+<tr>
+<td rowspan="2">Location 1</td>
+<td>Lower Point</td><td><input type="number" value="0"></td><td><input type="number" value="0"></td>
+</tr>
+<tr>
+<td>Upper Point</td><td><input type="number" value="0"></td><td><input type="number" value="0"></td>
+</tr>
+</table>
+</div>
+
+<!-- ✅ Roof Section -->
+<div class="card">
+<h3>Roof Weight Calculation</h3>
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:15px; align-items:center;">
+<label>Roof Type:
+<select id="roofType">
+<option value="fixed">Fixed Roof</option>
+<option value="floating">Floating Roof</option>
+</select></label>
+<label>Roof Thickness (mm): <input id="roofThickness" type="number" value="0" step="0.1"></label>
+<label>Roof Material:
+<select id="roofMaterial">
+<option value="carbonSteel">Carbon Steel</option>
+<option value="stainlessSteel">Stainless Steel</option>
+<option value="aluminum">Aluminum</option>
+<option value="concrete">Concrete</option>
+<option value="FRP">Fiberglass Reinforced Plastic (FRP)</option>
+<option value="other">Other</option>
+</select></label>
+<label>
+  <span>Roof Diameter (mm):</span>
+  <span class="info-tip">
+    <span class="icon">i</span>
+    <span class="bubble">Auto-calculated from strapping: D = (C/π − 2×first-course thickness), then temperature-corrected. You may edit if needed.</span>
+  </span>
+  <input id="roofDiameter" type="number" value="0" step="0.1">
+</label>
+<label>Quantity: <input id="roofQuantity" type="number" value="1" min="1"></label>
+</div>
+</div>
+
+<!-- ✅ Calibration Table -->
+<div class="card">
+<h3>Calibration Table (Summary)</h3>
+<div id="calTableWrapper">
+<table id="calTable">
+<thead>
+<tr><th>Height_mm</th><th>Cross-Section Area</th><th>Volume Increment</th><th>Cumulative Volume</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- ✅ Tank Summary -->
+<div class="card" id="tankSummaryCard">
+<h3>Tank Summary</h3>
+<table class="sampleTable">
+<tr style="background-color:#0b3d91; color:white;"><td>Internal Diameter (mm):</td><td id="summaryDiameter">0</td></tr>
+<tr style="background-color:#09427b; color:white;"><td>Circumference (mm):</td><td id="summaryCircumference">0</td></tr>
+<tr style="background-color:#0b3d91; color:white;"><td>Total Volume:</td><td id="summaryVolume">0</td></tr>
+<tr style="background-color:#09427b; color:white;"><td>Total Mass (kg):</td><td id="summaryMass">0</td></tr>
+<tr style="background-color:#0b3d91; color:white;"><td>Tank Height (mm):</td><td id="summaryHeight">0</td></tr>
+<tr style="background-color:#09427b; color:white;"><td>Max Filling Height (mm):</td><td id="summaryMaxFill">0</td></tr>
+<tr style="background-color:#0b3d91; color:white;"><td>Average Plate Thickness (mm):</td><td id="summaryPlate">0</td></tr>
+<tr style="background-color:#09427b; color:white;"><td>Shell Temperature (°C):</td><td id="summaryTemp">0</td></tr>
+<tr style="background-color:#0b3d91; color:white;"><td>Liquid Density (kg/m³):</td><td id="summaryDensity">0</td></tr>
+<tr style="background-color:#09427b; color:white;"><td>Tank Material:</td><td id="summaryMaterial">0</td></tr>
+</table>
+</div>
+
+<footer>Created By Akar SalahAlddin</footer>
+
+<script>
+// ✅ Calibration calculation using strapping (simplified)
+function recalculate(){
+    const strapC=parseFloat(document.getElementById('strapCircumference').value)||0;
+    const tankHeight=parseFloat(document.getElementById('tankHeight').value)||0;
+    const interval=parseFloat(document.getElementById('interval').value)||1;
+    const displayStep=parseInt(document.getElementById('displayStep')?.value)||10;
+    const density=parseFloat(document.getElementById('liquidDensity').value)||1000;
+    const volUnit=document.getElementById('volUnit').value;
+
+    // Diameter from strapping
+    const diameter=strapC/Math.PI;
+    const area=Math.PI*(diameter/2)*(diameter/2);
+
+    const tbody=document.querySelector('#calTable tbody');
+    tbody.innerHTML='';
+    let cumVol=0;
+
+    for(let h=0; h<=tankHeight; h+=interval){
+        const vol=area*interval/1000; // in liters
+        cumVol+=vol;
+        if(h%displayStep===0){
+            const row=document.createElement('tr');
+            let areaDisplay=volUnit==="liter"?(area*1000).toFixed(3):area.toFixed(6);
+            let volDisplay=volUnit==="liter"?(vol*1000).toFixed(3):vol.toFixed(6);
+            let cumDisplay=volUnit==="liter"?(cumVol*1000).toFixed(3):cumVol.toFixed(6);
+            row.innerHTML=`<td>${h}</td><td>${areaDisplay}</td><td>${volDisplay}</td><td>${cumDisplay}</td>`;
+            tbody.appendChild(row);
+        }
+    }
+
+    // Summary
+    document.getElementById('summaryDiameter').innerText=diameter.toFixed(2);
+    document.getElementById('summaryCircumference').innerText=strapC.toFixed(2);
+    document.getElementById('summaryVolume').innerText=volUnit==="liter"?(cumVol*1000).toFixed(3)+" L":cumVol.toFixed(6)+" m³";
+    document.getElementById('summaryMass').innerText=(cumVol*density/1000).toFixed(2);
+    document.getElementById('summaryHeight').innerText=tankHeight.toFixed(2);
+    document.getElementById('summaryMaxFill').innerText=document.getElementById('maxFillHeight').value;
+    document.getElementById('summaryTemp').innerText=document.getElementById('shellTemp').value;
+    document.getElementById('summaryDensity').innerText=density;
+    document.getElementById('summaryMaterial').innerText=document.getElementById('tankMaterial').value;
+
+    // Auto-update roof diameter if zero
+    const roofDiameterInput=document.getElementById('roofDiameter');
+    if(parseFloat(roofDiameterInput.value)===0){
+        roofDiameterInput.value=(diameter-parseFloat(document.querySelector('#courseTable input[type="number"]').value)*2).toFixed(2);
+    }
+}
+
+// ✅ CSV download
+function downloadCSV(){
+    const rows=[['Height_mm','Cross-Section Area','Volume Increment','Cumulative Volume']];
+    document.querySelectorAll('#calTable tbody tr').forEach(tr=>{rows.push(Array.from(tr.children).map(td=>td.innerText));});
+    const csvContent='data:text/csv;charset=utf-8,'+rows.map(e=>e.join(',')).join('\n');
+    const link=document.createElement('a');
+    link.setAttribute('href',csvContent);
+    link.setAttribute('download','tank_calibration.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// ✅ Course table add/remove
+function addCourseRow(){const table=document.getElementById('courseTable');const row=table.insertRow();row.innerHTML=`<td>${table.rows.length}</td><td><input type="number" value="0"></td><td><input type="number" value="0"></td>`;}
+function removeCourseRow(){const table=document.getElementById('courseTable');if(table.rows.length>2)table.deleteRow(-1);}
+
+// ✅ Dead wood add/remove
+function addDeadWoodRow(){const table=document.getElementById('deadWoodTable');const row=table.insertRow();row.innerHTML=`<td><input type="text"></td><td><input type="number" value="0"></td><td><input type="number" value="0"></td><td><input type="number" value="0"></td><td><input type="number" value="0"></td><td><select><option value="+">+</option><option value="-">-</option></select></td>`;}
+function removeDeadWoodRow(){const table=document.getElementById('deadWoodTable');if(table.rows.length>2)table.deleteRow(-1);}
+
+// ✅ Total Station Table Generation
+function generateTSGrid(){const n=parseInt(document.getElementById('numStations').value)||1;const p=parseInt(document.getElementById('pointsPerCourse').value)||1;const table=document.getElementById('tsGrid');table.innerHTML='';let header='<tr><th>Station #</th>';for(let i=1;i<=p;i++){header+=`<th>Point ${i} X</th><th>Point ${i} Y</th>`;}header+='</tr>';table.querySelector('thead').innerHTML=header;for(let s=1;s<=n;s++){let row='<tr><td>'+s+'</td>';for(let i=1;i<=p;i++){row+=`<td><input type="number" value="0"></td><td><input type="number" value="0"></td>`;}row+='</tr>';table.querySelector('tbody').innerHTML+=row;}}
+</script>
+</body>
+</html>
